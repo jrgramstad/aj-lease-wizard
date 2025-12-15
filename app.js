@@ -6,8 +6,8 @@
 
 // Wait for docx library to be loaded
 const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType,
-        AlignmentType, BorderStyle, HeadingLevel, PageBreak,
-        convertInchesToTwip, UnderlineType } = docx;
+        AlignmentType, BorderStyle, HeadingLevel, PageBreak, Footer, PageNumber,
+        convertInchesToTwip, UnderlineType, ShadingType } = docx;
 
 // Hardcoded landlord information (FIX 1)
 const LANDLORD = {
@@ -265,7 +265,9 @@ function hidePreview() {
 
 function generatePreviewHTML(data) {
     const lateFee = (parseFloat(data.monthlyRent) || 0) * 0.12;
+    const monthToMonthRent = (parseFloat(data.monthlyRent) || 0) * 1.10;
     const tenants = [data.tenant1Name, data.tenant2Name, data.tenant3Name].filter(Boolean).join(', ');
+    const garageText = data.garageSpaces == 1 ? '1-Car' : `${data.garageSpaces}-Car`;
 
     return `
         <div class="preview-section">
@@ -274,9 +276,9 @@ function generatePreviewHTML(data) {
                 <div class="preview-item"><span class="preview-label">Address:</span><span class="preview-value">${data.propertyAddress}</span></div>
                 <div class="preview-item"><span class="preview-label">City:</span><span class="preview-value">${data.city}, TX ${data.zipCode}</span></div>
                 <div class="preview-item"><span class="preview-label">County:</span><span class="preview-value">${data.county}</span></div>
-                <div class="preview-item"><span class="preview-label">Beds/Baths:</span><span class="preview-value">${data.bedrooms} bed / ${data.bathrooms} bath</span></div>
-                <div class="preview-item"><span class="preview-label">Garage:</span><span class="preview-value">${data.garageSpaces} spaces</span></div>
-                <div class="preview-item"><span class="preview-label">Year Built:</span><span class="preview-value">${data.yearBuilt || 'N/A'}</span></div>
+                <div class="preview-item"><span class="preview-label">Beds/Baths:</span><span class="preview-value">${data.bedrooms} Bedrooms | ${data.bathrooms} Bathrooms</span></div>
+                <div class="preview-item"><span class="preview-label">Garage:</span><span class="preview-value">${garageText} Garage</span></div>
+                <div class="preview-item"><span class="preview-label">Year Built:</span><span class="preview-value">${data.yearBuilt || 'Not Available'}</span></div>
             </div>
         </div>
 
@@ -463,9 +465,30 @@ function createLeaseDocument(data) {
 
     const sections = [];
 
-    // Title
+    // Title (V2 FIX 5 - Improved document presentation)
     sections.push(
-        createHeading('TEXAS RESIDENTIAL LEASE AGREEMENT', true),
+        new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 100 },
+            children: [
+                new TextRun({ text: "AJ ESTATES LLC", bold: true, size: 32 })
+            ]
+        }),
+        new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 300 },
+            children: [
+                new TextRun({ text: "TEXAS RESIDENTIAL LEASE AGREEMENT", bold: true, size: 28 })
+            ]
+        }),
+        new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 },
+            border: {
+                bottom: { style: BorderStyle.SINGLE, size: 6, color: "CCCCCC" }
+            },
+            children: []
+        }),
         createParagraph(''),
         createParagraph(`This Residential Lease Agreement ("Lease") is entered into on ${formatDate(new Date().toISOString().split('T')[0])}, by and between:`),
         createParagraph('')
@@ -487,14 +510,17 @@ function createLeaseDocument(data) {
         createParagraph('')
     );
 
-    // Section 1: Property
+    // Section 1: Property (V2 FIX 6 - Improved property description format)
+    const garageText = data.garageSpaces == 1 ? '1-Car Garage' : `${data.garageSpaces}-Car Garage`;
+    const yearBuiltText = data.yearBuilt ? data.yearBuilt : 'Not Available';
     sections.push(
         createHeading('1. PROPERTY'),
         createParagraph(`Landlord agrees to lease to Tenant and Tenant agrees to lease from Landlord the property located at:`),
-        createParagraph(`${fullAddress}`),
+        createParagraph(''),
+        createBoldParagraph(`${fullAddress}`),
         createParagraph(`County: ${data.county}`),
-        createParagraph(`Property Description: ${data.bedrooms} bedroom(s), ${data.bathrooms} bathroom(s), ${data.garageSpaces} garage space(s)`),
-        createParagraph(`Year Built: ${data.yearBuilt || 'N/A'}`),
+        createParagraph(`Property Description: ${data.bedrooms} Bedrooms | ${data.bathrooms} Bathrooms | ${garageText}`),
+        createParagraph(`Year Built: ${yearBuiltText}`),
         createParagraph('')
     );
 
@@ -545,17 +571,25 @@ function createLeaseDocument(data) {
         createParagraph('')
     );
 
-    // Section 6: Utilities
+    // Section 6: Utilities (V2 FIX 1 - Expanded list)
     sections.push(
         createHeading('6. UTILITIES AND SERVICES'),
-        createParagraph('Tenant shall be responsible for payment of the following utilities and services:'),
+        createParagraph(''),
+        createBoldParagraph('TENANT is responsible for:'),
         createParagraph('  • Electricity'),
         createParagraph('  • Gas'),
         createParagraph('  • Water/Sewer'),
-        createParagraph('  • Trash collection'),
+        createParagraph('  • Trash Collection'),
         createParagraph('  • Internet/Cable'),
+        createParagraph('  • Lawn Care and Landscaping Maintenance'),
+        createParagraph('  • Pool Maintenance (if applicable)'),
+        createParagraph('  • Pest Control'),
+        createParagraph('  • Security/Alarm Monitoring (if applicable)'),
         createParagraph(''),
-        createParagraph('Tenant must transfer utilities into Tenant\'s name within 3 days of lease commencement.'),
+        createBoldParagraph('LANDLORD is responsible for:'),
+        createParagraph('  • HOA Fees (if applicable)'),
+        createParagraph(''),
+        createParagraph('Tenant must transfer utilities into Tenant\'s name within 3 days of lease commencement. Failure to maintain required utilities may be grounds for lease termination.'),
         createParagraph('')
     );
 
@@ -642,12 +676,19 @@ function createLeaseDocument(data) {
         createParagraph('')
     );
 
-    // Section 13: Termination
+    // Section 13: Termination (V2 FIX 2 - Month-to-month clause with 10% increase)
+    const monthToMonthRent = (parseFloat(data.monthlyRent) || 0) * 1.10;
     sections.push(
         createHeading('13. TERMINATION AND RENEWAL'),
         createParagraph('This Lease shall terminate on the end date specified above. Either party must provide at least 60 days\' written notice before the lease end date if they do not wish to renew.'),
         createParagraph(''),
-        createParagraph(`Renewal Terms: If both parties agree to renew, rent may be increased by up to ${data.renewalIncrease || 5}% upon renewal.`),
+        createBoldParagraph('Month-to-Month Conversion:'),
+        createParagraph(`If Tenant remains in the property after the lease term expires without signing a new lease, the tenancy shall automatically convert to a month-to-month lease. Upon conversion to month-to-month, the monthly rent shall increase by 10% (to ${formatCurrency(monthToMonthRent)}).`),
+        createParagraph(''),
+        createParagraph('Either party may terminate a month-to-month tenancy by providing at least 30 days\' written notice.'),
+        createParagraph(''),
+        createBoldParagraph('Renewal Terms:'),
+        createParagraph(`If both parties agree to renew for another fixed term, rent may be increased by up to 10% upon renewal.`),
         createParagraph('')
     );
 
@@ -680,19 +721,24 @@ function createLeaseDocument(data) {
         );
     }
 
-    // Section 16: HOA
+    // Section 16: HOA (V2 FIX 3 - Tenant contacts HOA for rules)
     if (data.hasHOA) {
         sections.push(
             createHeading('16. HOMEOWNERS ASSOCIATION'),
-            createParagraph(`This property is subject to the rules and regulations of: ${data.hoaName || 'the Homeowners Association'}`),
-            createParagraph(`HOA Contact: ${data.hoaContact || 'Contact Landlord for details'}`),
+            createParagraph('☑ APPLIES TO THIS LEASE'),
             createParagraph(''),
-            createParagraph('Tenant agrees to comply with all HOA rules and regulations. Tenant shall be responsible for any fines or penalties resulting from Tenant\'s violation of HOA rules.'),
+            createParagraph(`This property is subject to the rules and regulations of: ${data.hoaName || 'the Homeowners Association'}`),
+            createParagraph(''),
+            createParagraph('HOA Contact: Contact Landlord for details'),
+            createParagraph(''),
+            createParagraph('Tenant agrees to comply with all HOA rules and regulations. Tenant may contact the HOA directly to obtain a copy of the current rules and regulations. Tenant shall be responsible for any fines or penalties resulting from Tenant\'s violation of HOA rules.'),
             createParagraph('')
         );
     } else {
         sections.push(
             createHeading('16. HOMEOWNERS ASSOCIATION'),
+            createParagraph('☐ DOES NOT APPLY'),
+            createParagraph(''),
             createParagraph('This property is NOT subject to HOA rules and regulations.'),
             createParagraph('')
         );
@@ -870,10 +916,42 @@ function createLeaseDocument(data) {
     // Move-In Checklist
     sections.push(...createMoveInChecklist(data));
 
+    // V2 FIX 4 - Add page footer with lease identification
+    const leaseDate = formatDate(new Date().toISOString().split('T')[0]);
+    const pageFooter = new Footer({
+        children: [
+            new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { before: 100 },
+                children: [
+                    new TextRun({ text: "─".repeat(70), size: 16, color: "999999" })
+                ]
+            }),
+            new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                    new TextRun({ text: `${LANDLORD.name} | ${fullAddress} | Lease Date: ${leaseDate} | Page `, size: 16 }),
+                    new TextRun({ children: [PageNumber.CURRENT], size: 16 }),
+                    new TextRun({ text: " of ", size: 16 }),
+                    new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16 })
+                ]
+            }),
+            new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                    new TextRun({ text: "Tenant Initials: _______ | Landlord Initials: _______", size: 16 })
+                ]
+            })
+        ]
+    });
+
     return new Document({
         sections: [{
             properties: {},
-            children: sections
+            children: sections,
+            footers: {
+                default: pageFooter
+            }
         }]
     });
 }
@@ -1254,17 +1332,18 @@ function createWinterizationAddendum(data) {
 // ============================================================================
 
 function createHeading(text, isTitle = false) {
+    // V2 FIX 5 - Improved section headers with better spacing
     return new Paragraph({
         children: [
             new TextRun({
                 text: text,
                 bold: true,
-                size: isTitle ? 32 : 24
+                size: isTitle ? 32 : 26  // Slightly larger section headers (13pt)
             })
         ],
         heading: isTitle ? HeadingLevel.TITLE : HeadingLevel.HEADING_1,
         alignment: isTitle ? AlignmentType.CENTER : AlignmentType.LEFT,
-        spacing: { after: 200 }
+        spacing: { before: isTitle ? 0 : 300, after: 150 }  // Add space before sections
     });
 }
 
@@ -1304,6 +1383,27 @@ function createBoldUnderlinedParagraph(text) {
             })
         ],
         spacing: { after: 100 }
+    });
+}
+
+// V2 FIX 5 - Shaded box for important notices
+function createShadedNotice(text, isBold = true) {
+    return new Paragraph({
+        shading: { fill: "F5F5F5", type: ShadingType.CLEAR },
+        border: {
+            top: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
+            bottom: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
+            left: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
+            right: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" }
+        },
+        children: [
+            new TextRun({
+                text: text,
+                bold: isBold,
+                size: 22
+            })
+        ],
+        spacing: { before: 100, after: 100 }
     });
 }
 
