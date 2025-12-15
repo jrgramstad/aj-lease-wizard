@@ -479,9 +479,13 @@ async function generateLease() {
 
     try {
         const data = collectFormData();
+        console.log('Generating lease document...');
+
         const doc = createLeaseDocument(data);
+        console.log('Document created, converting to blob...');
 
         const blob = await Packer.toBlob(doc);
+        console.log('Blob created, size:', blob.size);
 
         // Create filename
         const tenantLastName = data.tenant1Name.split(' ').pop() || 'Tenant';
@@ -489,24 +493,26 @@ async function generateLease() {
         const dateStr = new Date().toISOString().split('T')[0];
         const filename = `Lease_${addressShort}_${tenantLastName}_${dateStr}.docx`;
 
-        // Download lease
+        // Download lease first
+        console.log('Downloading lease:', filename);
         downloadBlob(blob, filename);
-
-        // Auto-download Lead Paint PDF for pre-1978 properties
-        const yearBuilt = parseInt(data.yearBuilt) || 2000;
-        if (yearBuilt < 1978) {
-            // Small delay to avoid popup blocker issues
-            setTimeout(() => {
-                window.open(LEAD_PAINT_PDF_URL, '_blank');
-                showToast('Lead Paint Pamphlet PDF opened (required for pre-1978 properties)', 'success');
-            }, 500);
-        }
 
         showToast('Lease generated successfully!', 'success');
 
+        // Auto-open Lead Paint PDF for pre-1978 properties (after lease downloads)
+        const yearBuilt = parseInt(data.yearBuilt) || 2000;
+        if (yearBuilt < 1978) {
+            // Longer delay to ensure lease download starts first
+            setTimeout(() => {
+                console.log('Opening Lead Paint PDF...');
+                window.open(LEAD_PAINT_PDF_URL, '_blank');
+                showToast('Lead Paint Pamphlet PDF opened (required for pre-1978 properties)', 'success');
+            }, 1000);
+        }
+
     } catch (error) {
         console.error('Error generating lease:', error);
-        showToast('Error generating lease. Please try again.', 'error');
+        showToast('Error generating lease: ' + error.message, 'error');
     } finally {
         generateBtn.classList.remove('loading');
         generateBtn.disabled = false;
