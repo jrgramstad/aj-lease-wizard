@@ -9,9 +9,6 @@ const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthT
         AlignmentType, BorderStyle, HeadingLevel, PageBreak, Footer, PageNumber,
         convertInchesToTwip, UnderlineType, ShadingType } = docx;
 
-// EPA Lead Paint Pamphlet URL (required for pre-1978 properties)
-const LEAD_PAINT_PDF_URL = 'https://www.epa.gov/sites/default/files/2020-04/documents/lead-in-your-home-portrait-color-2020-508.pdf';
-
 // Hardcoded landlord information (FIX 1)
 const LANDLORD = {
     name: "AJ Estates LLC",
@@ -101,10 +98,6 @@ function setupEventListeners() {
     const saveDraftBtn = document.getElementById('saveDraftBtn');
     saveDraftBtn.addEventListener('click', saveDraft);
 
-    // Lead Paint PDF download button
-    const leadPaintPdfBtn = document.getElementById('leadPaintPdfBtn');
-    leadPaintPdfBtn.addEventListener('click', downloadLeadPaintPdf);
-
     // Modal controls
     const closePreview = document.getElementById('closePreview');
     const closePreviewBtn = document.getElementById('closePreviewBtn');
@@ -149,12 +142,6 @@ function checkLeadPaint() {
     // Show/hide warning
     const warning = document.getElementById('leadPaintWarning');
     warning.style.display = requiresLeadPaint ? 'block' : 'none';
-
-    // Show/hide Lead Paint PDF download button
-    const pdfBtn = document.getElementById('leadPaintPdfBtn');
-    if (pdfBtn) {
-        pdfBtn.style.display = requiresLeadPaint ? 'inline-block' : 'none';
-    }
 
     updateAddendumStatus();
 }
@@ -464,12 +451,6 @@ function collectFormData() {
 // DOCUMENT GENERATION
 // ============================================================================
 
-// Download EPA Lead Paint Pamphlet PDF
-function downloadLeadPaintPdf() {
-    window.open(LEAD_PAINT_PDF_URL, '_blank');
-    showToast('Opening Lead Paint Pamphlet PDF...', 'success');
-}
-
 async function generateLease() {
     if (!validateForm()) return;
 
@@ -493,22 +474,11 @@ async function generateLease() {
         const dateStr = new Date().toISOString().split('T')[0];
         const filename = `Lease_${addressShort}_${tenantLastName}_${dateStr}.docx`;
 
-        // Download lease first
+        // Download lease
         console.log('Downloading lease:', filename);
         downloadBlob(blob, filename);
 
         showToast('Lease generated successfully!', 'success');
-
-        // Auto-open Lead Paint PDF for pre-1978 properties (after lease downloads)
-        const yearBuilt = parseInt(data.yearBuilt) || 2000;
-        if (yearBuilt < 1978) {
-            // Longer delay to ensure lease download starts first
-            setTimeout(() => {
-                console.log('Opening Lead Paint PDF...');
-                window.open(LEAD_PAINT_PDF_URL, '_blank');
-                showToast('Lead Paint Pamphlet PDF opened (required for pre-1978 properties)', 'success');
-            }, 1000);
-        }
 
     } catch (error) {
         console.error('Error generating lease:', error);
