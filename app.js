@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadDraft();
     setupEventListeners();
     updateCalculations();
+    updateMaxOccupants();
     updateAddendumStatus();
 });
 
@@ -69,6 +70,17 @@ function setupEventListeners() {
     // Monthly rent - late fee calculation
     const monthlyRent = document.getElementById('monthlyRent');
     monthlyRent.addEventListener('input', updateCalculations);
+
+    // Tenant names and additional occupants - auto-calculate max occupants
+    const tenant1Name = document.getElementById('tenant1Name');
+    const tenant2Name = document.getElementById('tenant2Name');
+    const tenant3Name = document.getElementById('tenant3Name');
+    const numAdditionalOccupants = document.getElementById('numAdditionalOccupants');
+
+    tenant1Name.addEventListener('input', updateMaxOccupants);
+    tenant2Name.addEventListener('input', updateMaxOccupants);
+    tenant3Name.addEventListener('input', updateMaxOccupants);
+    numAdditionalOccupants.addEventListener('input', updateMaxOccupants);
 
     // Gas appliances toggle
     const hasGasAppliances = document.getElementById('hasGasAppliances');
@@ -138,6 +150,24 @@ function updateCalculations() {
     const monthlyRent = parseFloat(document.getElementById('monthlyRent').value) || 0;
     const lateFee = monthlyRent * 0.12;
     document.getElementById('lateFeeDisplay').textContent = formatCurrency(lateFee);
+}
+
+function updateMaxOccupants() {
+    // Count tenants with names filled in
+    const tenantCount = [
+        document.getElementById('tenant1Name').value,
+        document.getElementById('tenant2Name').value,
+        document.getElementById('tenant3Name').value
+    ].filter(name => name.trim() !== '').length;
+
+    // Get number of additional occupants
+    const additionalCount = parseInt(document.getElementById('numAdditionalOccupants').value) || 0;
+
+    // Calculate total
+    const total = tenantCount + additionalCount;
+
+    // Update display (minimum 1)
+    document.getElementById('maxOccupantsDisplay').textContent = Math.max(1, total);
 }
 
 function updateAddendumStatus() {
@@ -242,6 +272,7 @@ function populateForm(data) {
     toggleHOAFields();
     checkLeadPaint();
     updateCalculations();
+    updateMaxOccupants();
     updateAddendumStatus();
 }
 
@@ -366,8 +397,9 @@ function collectFormData() {
         tenant1Email: document.getElementById('tenant1Email').value,
         tenant2Name: document.getElementById('tenant2Name').value,
         tenant3Name: document.getElementById('tenant3Name').value,
+        numAdditionalOccupants: document.getElementById('numAdditionalOccupants').value,
         additionalOccupants: document.getElementById('additionalOccupants').value,
-        maxOccupants: document.getElementById('maxOccupants').value,
+        maxOccupants: document.getElementById('maxOccupantsDisplay').textContent,
 
         // Lease Terms
         leaseStartDate: document.getElementById('leaseStartDate').value,

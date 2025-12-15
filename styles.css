@@ -377,6 +377,16 @@ textarea {
     color: var(--primary-color);
 }
 
+.calculated-display {
+    background-color: var(--background-color);
+    padding: 10px 14px;
+    border-radius: var(--border-radius);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    border: 1px solid var(--border-color);
+}
+
 /* Addendum Summary */
 .summary-section {
     background: linear-gradient(135deg, #f8fafc, #f1f5f9);
