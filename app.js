@@ -9,6 +9,9 @@ const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthT
         AlignmentType, BorderStyle, HeadingLevel, PageBreak, Footer, PageNumber,
         convertInchesToTwip, UnderlineType, ShadingType } = docx;
 
+// EPA Lead Paint Pamphlet URL (required for pre-1978 properties)
+const LEAD_PAINT_PDF_URL = 'https://www.epa.gov/sites/default/files/2020-04/documents/lead-in-your-home-portrait-color-2020-508.pdf';
+
 // Hardcoded landlord information (FIX 1)
 const LANDLORD = {
     name: "AJ Estates LLC",
@@ -98,6 +101,10 @@ function setupEventListeners() {
     const saveDraftBtn = document.getElementById('saveDraftBtn');
     saveDraftBtn.addEventListener('click', saveDraft);
 
+    // Lead Paint PDF download button
+    const leadPaintPdfBtn = document.getElementById('leadPaintPdfBtn');
+    leadPaintPdfBtn.addEventListener('click', downloadLeadPaintPdf);
+
     // Modal controls
     const closePreview = document.getElementById('closePreview');
     const closePreviewBtn = document.getElementById('closePreviewBtn');
@@ -137,8 +144,18 @@ function toggleHOAFields() {
 
 function checkLeadPaint() {
     const yearBuilt = document.getElementById('yearBuilt').value;
+    const requiresLeadPaint = yearBuilt && parseInt(yearBuilt) < 1978;
+
+    // Show/hide warning
     const warning = document.getElementById('leadPaintWarning');
-    warning.style.display = yearBuilt && parseInt(yearBuilt) < 1978 ? 'block' : 'none';
+    warning.style.display = requiresLeadPaint ? 'block' : 'none';
+
+    // Show/hide Lead Paint PDF download button
+    const pdfBtn = document.getElementById('leadPaintPdfBtn');
+    if (pdfBtn) {
+        pdfBtn.style.display = requiresLeadPaint ? 'inline-block' : 'none';
+    }
+
     updateAddendumStatus();
 }
 
@@ -447,6 +464,12 @@ function collectFormData() {
 // DOCUMENT GENERATION
 // ============================================================================
 
+// Download EPA Lead Paint Pamphlet PDF
+function downloadLeadPaintPdf() {
+    window.open(LEAD_PAINT_PDF_URL, '_blank');
+    showToast('Opening Lead Paint Pamphlet PDF...', 'success');
+}
+
 async function generateLease() {
     if (!validateForm()) return;
 
@@ -466,8 +489,18 @@ async function generateLease() {
         const dateStr = new Date().toISOString().split('T')[0];
         const filename = `Lease_${addressShort}_${tenantLastName}_${dateStr}.docx`;
 
-        // Download
+        // Download lease
         downloadBlob(blob, filename);
+
+        // Auto-download Lead Paint PDF for pre-1978 properties
+        const yearBuilt = parseInt(data.yearBuilt) || 2000;
+        if (yearBuilt < 1978) {
+            // Small delay to avoid popup blocker issues
+            setTimeout(() => {
+                window.open(LEAD_PAINT_PDF_URL, '_blank');
+                showToast('Lead Paint Pamphlet PDF opened (required for pre-1978 properties)', 'success');
+            }, 500);
+        }
 
         showToast('Lease generated successfully!', 'success');
 
@@ -907,42 +940,40 @@ function createLeaseDocument(data) {
         );
     }
 
-    // Add addendums
+    // Add addendums - ALWAYS include all addendums for consistent Dropbox Sign template
     sections.push(new Paragraph({ children: [new PageBreak()] }));
 
-    // Lead Paint Addendum
-    if (requiresLeadPaint) {
-        sections.push(...createLeadPaintAddendum(data));
-    }
+    // Lead Paint Addendum (always included, marked if applicable)
+    sections.push(...createLeadPaintAddendum(data, requiresLeadPaint));
 
-    // Pet Addendum
-    if (data.petsAllowed) {
-        sections.push(...createPetAddendum(data));
-    }
+    // Pet Addendum (always included, marked if applicable)
+    sections.push(...createPetAddendum(data, data.petsAllowed));
 
-    // HOA Addendum
-    if (data.hasHOA) {
-        sections.push(...createHOAAddendum(data));
-    }
+    // HOA Addendum (always included, marked if applicable)
+    sections.push(...createHOAAddendum(data, data.hasHOA));
 
-    // Gas Pilot Light Addendum (FIX 7 - Updated with $150 fee)
-    if (data.hasGasAppliances) {
-        sections.push(...createGasAddendum(data));
-    }
+    // Gas Pilot Light Addendum (always included, marked if applicable)
+    sections.push(...createGasAddendum(data, data.hasGasAppliances));
 
-    // Always-included addendums (FIX 8)
+    // Water Leak Addendum (always applies)
     sections.push(...createWaterLeakAddendum(data));
+
+    // Clogged Drain Addendum (always applies)
     sections.push(...createCloggedDrainAddendum(data));
 
-    // Carpet Cleaning Addendum
-    if (data.hasCarpet) {
-        sections.push(...createCarpetAddendum(data));
-    }
+    // Carpet Cleaning Addendum (always included, marked if applicable)
+    sections.push(...createCarpetAddendum(data, data.hasCarpet));
 
-    // More always-included addendums (FIX 8)
+    // Electric Breaker Addendum (always applies)
     sections.push(...createElectricBreakerAddendum(data));
+
+    // Broken Window Addendum (always applies)
     sections.push(...createBrokenWindowAddendum(data));
+
+    // HVAC Filter Addendum (always applies)
     sections.push(...createHVACFilterAddendum(data));
+
+    // Winterization Addendum (always applies)
     sections.push(...createWinterizationAddendum(data));
 
     // Move-In Checklist
@@ -992,9 +1023,15 @@ function createLeaseDocument(data) {
 // ADDENDUM GENERATORS
 // ============================================================================
 
-function createLeadPaintAddendum(data) {
+function createLeadPaintAddendum(data, applies = false) {
+    const statusLine = applies
+        ? '☑ APPLIES TO THIS LEASE (Property built before 1978)'
+        : '☐ DOES NOT APPLY (Property built 1978 or later)';
+
     return [
         createHeading('ADDENDUM A: LEAD-BASED PAINT DISCLOSURE', true),
+        createParagraph(''),
+        createBoldParagraph(statusLine),
         createParagraph(''),
         createParagraph('Disclosure of Information on Lead-Based Paint and/or Lead-Based Paint Hazards'),
         createParagraph(''),
@@ -1026,26 +1063,48 @@ function createLeadPaintAddendum(data) {
     ];
 }
 
-function createPetAddendum(data) {
+function createPetAddendum(data, applies = false) {
+    const statusLine = applies
+        ? '☑ APPLIES TO THIS LEASE'
+        : '☐ DOES NOT APPLY (No pets permitted without signed pet addendum)';
+
     const pets = [];
-    if (data.pet1Name) {
+    if (applies && data.pet1Name) {
         pets.push(`${data.pet1Name} (${data.pet1Type} - ${data.pet1Breed}, ${data.pet1Weight} lbs)`);
     }
-    if (data.pet2Name) {
+    if (applies && data.pet2Name) {
         pets.push(`${data.pet2Name} (${data.pet2Type} - ${data.pet2Breed}, ${data.pet2Weight} lbs)`);
     }
 
-    return [
+    const sections = [
         createHeading('ADDENDUM B: PET AGREEMENT', true),
         createParagraph(''),
+        createBoldParagraph(statusLine),
+        createParagraph(''),
         createParagraph('This Pet Agreement is attached to and made part of the Residential Lease Agreement.'),
-        createParagraph(''),
-        createParagraph('APPROVED PETS:'),
-        ...pets.map(pet => createParagraph(`  • ${pet}`)),
-        createParagraph(''),
-        createParagraph(`Pet Deposit: ${formatCurrency(data.petDeposit)} (non-refundable)`),
-        createParagraph(`Monthly Pet Rent: ${formatCurrency(data.monthlyPetRent)} per pet`),
-        createParagraph(''),
+        createParagraph('')
+    ];
+
+    if (applies && pets.length > 0) {
+        sections.push(
+            createParagraph('APPROVED PETS:'),
+            ...pets.map(pet => createParagraph(`  • ${pet}`)),
+            createParagraph(''),
+            createParagraph(`Pet Deposit: ${formatCurrency(data.petDeposit)} (non-refundable)`),
+            createParagraph(`Monthly Pet Rent: ${formatCurrency(data.monthlyPetRent)} per pet`),
+            createParagraph('')
+        );
+    } else {
+        sections.push(
+            createParagraph('APPROVED PETS: None'),
+            createParagraph(''),
+            createParagraph('Pet Deposit: N/A'),
+            createParagraph('Monthly Pet Rent: N/A'),
+            createParagraph('')
+        );
+    }
+
+    sections.push(
         createParagraph('TENANT AGREES TO:'),
         createParagraph('1. Keep pet(s) current on all vaccinations and provide proof upon request.'),
         createParagraph('2. Keep pet(s) on a leash when outside the dwelling unit.'),
@@ -1067,17 +1126,25 @@ function createPetAddendum(data) {
         createParagraph('Landlord Signature: ___________________________________ Date: _______________'),
         createParagraph(''),
         new Paragraph({ children: [new PageBreak()] })
-    ];
+    );
+
+    return sections;
 }
 
-function createHOAAddendum(data) {
+function createHOAAddendum(data, applies = false) {
+    const statusLine = applies
+        ? '☑ APPLIES TO THIS LEASE'
+        : '☐ DOES NOT APPLY (Property is not subject to HOA)';
+
     return [
         createHeading('ADDENDUM C: HOA RULES AND REGULATIONS', true),
         createParagraph(''),
+        createBoldParagraph(statusLine),
+        createParagraph(''),
         createParagraph('This property is subject to the rules and regulations of the Homeowners Association.'),
         createParagraph(''),
-        createParagraph(`HOA Name: ${data.hoaName || 'See Landlord for details'}`),
-        createParagraph(`HOA Contact: ${data.hoaContact || 'Contact Landlord'}`),
+        createParagraph(`HOA Name: ${applies && data.hoaName ? data.hoaName : 'N/A'}`),
+        createParagraph(`HOA Contact: ${applies && data.hoaContact ? data.hoaContact : 'N/A'}`),
         createParagraph(''),
         createParagraph('TENANT ACKNOWLEDGES AND AGREES:'),
         createParagraph(''),
@@ -1095,7 +1162,7 @@ function createHOAAddendum(data) {
         createParagraph('   • Pet restrictions'),
         createParagraph('   • Trash and recycling procedures'),
         createParagraph(''),
-        data.hoaRules ? createParagraph(`Additional HOA Notes: ${data.hoaRules}`) : createParagraph(''),
+        applies && data.hoaRules ? createParagraph(`Additional HOA Notes: ${data.hoaRules}`) : createParagraph(''),
         createParagraph(''),
         createParagraph(''),
         createParagraph('Tenant Signature: ___________________________________ Date: _______________'),
@@ -1106,12 +1173,16 @@ function createHOAAddendum(data) {
     ];
 }
 
-function createGasAddendum(data) {
+function createGasAddendum(data, applies = false) {
     // FIX 7 - Updated with $150 service fee language
+    const statusLine = applies
+        ? '☑ APPLIES TO THIS LEASE'
+        : '☐ DOES NOT APPLY (No gas appliances)';
+
     return [
         createHeading('ADDENDUM D: GAS PILOT LIGHTING', true),
         createParagraph(''),
-        createParagraph('☑ APPLIES TO THIS LEASE'),
+        createBoldParagraph(statusLine),
         createParagraph(''),
         createParagraph('Landlord is not responsible for lighting pilots on gas stoves, heaters, or water heaters. Directions to light all gas appliances are clearly written and mounted on each appliance.'),
         createParagraph(''),
@@ -1146,9 +1217,15 @@ function createGasAddendum(data) {
     ];
 }
 
-function createCarpetAddendum(data) {
+function createCarpetAddendum(data, applies = false) {
+    const statusLine = applies
+        ? '☑ APPLIES TO THIS LEASE'
+        : '☐ DOES NOT APPLY (No carpet in property)';
+
     return [
         createHeading('ADDENDUM E: CARPET CLEANING AGREEMENT', true),
+        createParagraph(''),
+        createBoldParagraph(statusLine),
         createParagraph(''),
         createParagraph('This property has carpeted flooring. Tenant acknowledges and agrees to the following:'),
         createParagraph(''),
