@@ -278,6 +278,15 @@
                     </div>
                 </div>
 
+                <!-- HVAC Filter Size -->
+                <h3 class="subsection-title">HVAC Information</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="hvacFilterSize">HVAC Filter Size (e.g., 20x25x1)</label>
+                        <input type="text" id="hvacFilterSize" name="hvacFilterSize" placeholder="20x25x1">
+                    </div>
+                </div>
+
                 <!-- Appliances -->
                 <h3 class="subsection-title">Appliances Included</h3>
                 <div class="checkbox-grid">
@@ -326,25 +335,36 @@
                 </div>
             </section>
 
-            <!-- LANDLORD INFORMATION -->
+            <!-- LANDLORD INFORMATION (Read-only - Hardcoded) -->
             <section class="form-section">
                 <h2 class="section-title">Landlord Information</h2>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="landlordName">Landlord/Company Name</label>
-                        <input type="text" id="landlordName" name="landlordName" value="AJ Estates LLC">
+                <div class="info-box">
+                    <p><strong>AJ Estates LLC</strong></p>
+                    <p>700 Central Expressway S, Suite 400, Allen, TX 75013</p>
+                    <p>Phone: 469-408-0447</p>
+                    <p>Email: info@ajrealestategroup.com</p>
+                    <p class="emergency-notice">Emergency Contact: 469-408-0447</p>
+                </div>
+            </section>
+
+            <!-- FLOOD DISCLOSURE (Texas Property Code § 92.0135) -->
+            <section class="form-section">
+                <h2 class="section-title">Flood Disclosure</h2>
+                <p class="section-description">Required by Texas Property Code § 92.0135 (effective January 1, 2022)</p>
+                <div class="checkbox-grid">
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="inFloodplain" name="inFloodplain">
+                            <span class="checkmark"></span>
+                            Property is in a 100-year floodplain
+                        </label>
                     </div>
-                    <div class="form-group">
-                        <label for="landlordAddress">Landlord Address</label>
-                        <input type="text" id="landlordAddress" name="landlordAddress" placeholder="123 Business Ave, Dallas, TX">
-                    </div>
-                    <div class="form-group">
-                        <label for="landlordPhone">Landlord Phone</label>
-                        <input type="tel" id="landlordPhone" name="landlordPhone" placeholder="(555) 000-0000">
-                    </div>
-                    <div class="form-group">
-                        <label for="landlordEmail">Landlord Email</label>
-                        <input type="email" id="landlordEmail" name="landlordEmail" placeholder="info@ajestates.com">
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="hasFloodDamage" name="hasFloodDamage">
+                            <span class="checkmark"></span>
+                            Property has flooded in the past 5 years
+                        </label>
                     </div>
                 </div>
             </section>
@@ -354,6 +374,11 @@
                 <h2 class="section-title">Addendum Summary</h2>
                 <p class="section-description">These addendums will be automatically included based on your selections:</p>
                 <div class="addendum-list" id="addendumList">
+                    <div class="addendum-item active" id="addendum-moveIn">
+                        <span class="addendum-status">☑</span>
+                        <span class="addendum-name">Move-In/Move-Out Condition Report</span>
+                        <span class="addendum-condition">(Always included)</span>
+                    </div>
                     <div class="addendum-item" id="addendum-leadPaint">
                         <span class="addendum-status">☐</span>
                         <span class="addendum-name">Lead-Based Paint Disclosure</span>
@@ -374,10 +399,40 @@
                         <span class="addendum-name">Gas Pilot Light Notice</span>
                         <span class="addendum-condition">(Has gas appliances)</span>
                     </div>
+                    <div class="addendum-item active" id="addendum-water">
+                        <span class="addendum-status">☑</span>
+                        <span class="addendum-name">Excess Water Bill / Leak</span>
+                        <span class="addendum-condition">(Always included)</span>
+                    </div>
+                    <div class="addendum-item active" id="addendum-drain">
+                        <span class="addendum-status">☑</span>
+                        <span class="addendum-name">Clogged Drain</span>
+                        <span class="addendum-condition">(Always included)</span>
+                    </div>
                     <div class="addendum-item" id="addendum-carpet">
                         <span class="addendum-status">☐</span>
                         <span class="addendum-name">Carpet Cleaning Agreement</span>
                         <span class="addendum-condition">(Has carpet)</span>
+                    </div>
+                    <div class="addendum-item active" id="addendum-electric">
+                        <span class="addendum-status">☑</span>
+                        <span class="addendum-name">Electric Breaker / Fuse</span>
+                        <span class="addendum-condition">(Always included)</span>
+                    </div>
+                    <div class="addendum-item active" id="addendum-window">
+                        <span class="addendum-status">☑</span>
+                        <span class="addendum-name">Broken Window</span>
+                        <span class="addendum-condition">(Always included)</span>
+                    </div>
+                    <div class="addendum-item active" id="addendum-hvac">
+                        <span class="addendum-status">☑</span>
+                        <span class="addendum-name">HVAC Air Filter Maintenance</span>
+                        <span class="addendum-condition">(Always included)</span>
+                    </div>
+                    <div class="addendum-item active" id="addendum-winter">
+                        <span class="addendum-status">☑</span>
+                        <span class="addendum-name">Winterization / Freeze Protection</span>
+                        <span class="addendum-condition">(Always included)</span>
                     </div>
                 </div>
             </section>

@@ -9,6 +9,15 @@ const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthT
         AlignmentType, BorderStyle, HeadingLevel, PageBreak,
         convertInchesToTwip, UnderlineType } = docx;
 
+// Hardcoded landlord information (FIX 1)
+const LANDLORD = {
+    name: "AJ Estates LLC",
+    address: "700 Central Expressway S, Suite 400, Allen, TX 75013",
+    phone: "469-408-0447",
+    email: "info@ajrealestategroup.com",
+    emergencyPhone: "469-408-0447"
+};
+
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
@@ -308,13 +317,27 @@ function generatePreviewHTML(data) {
         <div class="preview-section">
             <h3>Applicable Addendums</h3>
             <ul style="list-style: none; padding: 0;">
+                <li>☑ Move-In/Move-Out Condition Report (Always)</li>
                 ${parseInt(data.yearBuilt) < 1978 ? '<li>☑ Lead-Based Paint Disclosure</li>' : ''}
                 ${data.petsAllowed ? '<li>☑ Pet Agreement</li>' : ''}
                 ${data.hasHOA ? '<li>☑ HOA Rules Addendum</li>' : ''}
                 ${data.hasGasAppliances ? '<li>☑ Gas Pilot Light Notice</li>' : ''}
+                <li>☑ Excess Water Bill / Leak (Always)</li>
+                <li>☑ Clogged Drain (Always)</li>
                 ${data.hasCarpet ? '<li>☑ Carpet Cleaning Agreement</li>' : ''}
-                ${!(parseInt(data.yearBuilt) < 1978 || data.petsAllowed || data.hasHOA || data.hasGasAppliances || data.hasCarpet) ? '<li>No special addendums required</li>' : ''}
+                <li>☑ Electric Breaker / Fuse (Always)</li>
+                <li>☑ Broken Window (Always)</li>
+                <li>☑ HVAC Air Filter Maintenance (Always)</li>
+                <li>☑ Winterization / Freeze Protection (Always)</li>
             </ul>
+        </div>
+
+        <div class="preview-section">
+            <h3>Flood Disclosure</h3>
+            <div class="preview-grid">
+                <div class="preview-item"><span class="preview-label">In Floodplain:</span><span class="preview-value">${data.inFloodplain ? 'Yes' : 'No'}</span></div>
+                <div class="preview-item"><span class="preview-label">Flood Damage (5 yrs):</span><span class="preview-value">${data.hasFloodDamage ? 'Yes' : 'No'}</span></div>
+            </div>
         </div>
     `;
 }
@@ -378,12 +401,11 @@ function collectFormData() {
         hasWasher: document.getElementById('hasWasher').checked,
         hasDryer: document.getElementById('hasDryer').checked,
         hasGarbageDisposal: document.getElementById('hasGarbageDisposal').checked,
+        hvacFilterSize: document.getElementById('hvacFilterSize').value,
 
-        // Landlord
-        landlordName: document.getElementById('landlordName').value,
-        landlordAddress: document.getElementById('landlordAddress').value,
-        landlordPhone: document.getElementById('landlordPhone').value,
-        landlordEmail: document.getElementById('landlordEmail').value
+        // Flood Disclosure (FIX 4)
+        inFloodplain: document.getElementById('inFloodplain').checked,
+        hasFloodDamage: document.getElementById('hasFloodDamage').checked
     };
 }
 
@@ -449,13 +471,15 @@ function createLeaseDocument(data) {
         createParagraph('')
     );
 
-    // Parties
+    // Parties (FIX 1 & 2 - Hardcoded landlord info with emergency contact)
     sections.push(
         createHeading('PARTIES'),
-        createParagraph(`LANDLORD: ${data.landlordName || 'AJ Estates LLC'}`),
-        createParagraph(`Address: ${data.landlordAddress || ''}`),
-        createParagraph(`Phone: ${data.landlordPhone || ''}`),
-        createParagraph(`Email: ${data.landlordEmail || ''}`),
+        createParagraph(`LANDLORD: ${LANDLORD.name}`),
+        createParagraph(`Address: ${LANDLORD.address}`),
+        createParagraph(`Phone: ${LANDLORD.phone}`),
+        createParagraph(`Email: ${LANDLORD.email}`),
+        createBoldParagraph(`Emergency Contact Phone: ${LANDLORD.emergencyPhone}`),
+        createParagraph('(For conditions materially affecting physical health or safety of an ordinary tenant - Texas Property Code § 92.020)'),
         createParagraph(''),
         createParagraph(`TENANT(S): ${tenantNames}`),
         createParagraph(`Phone: ${data.tenant1Phone || ''}`),
@@ -481,13 +505,14 @@ function createLeaseDocument(data) {
         createParagraph('')
     );
 
-    // Section 3: Rent
+    // Section 3: Rent (FIX 6 - Added NSF fee)
     sections.push(
         createHeading('3. RENT'),
         createParagraph(`Monthly Rent: ${formatCurrency(data.monthlyRent)}`),
         createParagraph(`Due Date: Rent is due on the 1st day of each month.`),
         createParagraph(`Grace Period: Rent received after the 3rd day of the month will be considered late.`),
         createParagraph(`Late Fee: ${formatCurrency(lateFee)} (12% of monthly rent) will be charged for late payment.`),
+        createParagraph(`NSF/Returned Check Fee: $30.00 (per Texas Business & Commerce Code § 3.506)`),
         data.proratedFirstMonth ? createParagraph(`Prorated First Month Rent: ${formatCurrency(data.proratedFirstMonth)}`) : createParagraph(''),
         createParagraph(''),
         createParagraph('Payment Methods: Rent shall be paid via:'),
@@ -552,10 +577,27 @@ function createLeaseDocument(data) {
         createParagraph('  • Dispose of garbage properly'),
         createParagraph('  • Not damage or misuse the premises'),
         createParagraph('  • Promptly report any maintenance issues or needed repairs'),
-        createParagraph('  • Replace HVAC filters monthly'),
+        createParagraph('  • Replace HVAC filters every 90 days (or more frequently if needed)'),
         createParagraph('  • Maintain the lawn and landscaping (if applicable)'),
         createParagraph(''),
         createParagraph('Landlord shall be responsible for major repairs and maintenance, including HVAC, plumbing, electrical systems, and structural components.'),
+        createParagraph('')
+    );
+
+    // Section 8A: Repair Remedy Notice (FIX 3 - CRITICAL)
+    sections.push(
+        createHeading('8A. IMPORTANT NOTICE OF TENANT\'S REPAIR REMEDIES'),
+        createBoldUnderlinedParagraph('(Texas Property Code §§ 92.056 and 92.0561)'),
+        createParagraph(''),
+        createBoldParagraph('If Landlord fails to repair a condition that materially affects the physical health or safety of an ordinary tenant after receiving proper written notice, Tenant may be entitled to the following remedies under Texas Property Code:'),
+        createParagraph(''),
+        createBoldParagraph('(1) Terminate the lease;'),
+        createParagraph(''),
+        createBoldParagraph('(2) Have the condition repaired or remedied and deduct the cost from rent (not to exceed one month\'s rent or $500, whichever is greater);'),
+        createParagraph(''),
+        createBoldParagraph('(3) Obtain a court order directing the Landlord to make repairs, reduce rent, pay damages, and pay Tenant\'s court costs and attorney\'s fees.'),
+        createParagraph(''),
+        createBoldParagraph('These remedies are subject to compliance with statutory notice requirements and other conditions specified in the Texas Property Code.'),
         createParagraph('')
     );
 
@@ -656,9 +698,45 @@ function createLeaseDocument(data) {
         );
     }
 
-    // Section 17: Additional Terms
+    // Section 17: Flood Disclosure (FIX 4 - CRITICAL)
     sections.push(
-        createHeading('17. ADDITIONAL TERMS'),
+        createHeading('17. FLOOD DISCLOSURE'),
+        createBoldParagraph('(Texas Property Code § 92.0135)'),
+        createParagraph(''),
+        createParagraph('100-Year Floodplain Status:'),
+        createParagraph(`  ${data.inFloodplain ? '☑' : '☐'} Landlord IS aware that the property is located in a 100-year floodplain`),
+        createParagraph(`  ${data.inFloodplain ? '☐' : '☑'} Landlord IS NOT aware that the property is located in a 100-year floodplain`),
+        createParagraph(''),
+        createParagraph('Prior Flooding:'),
+        createParagraph(`  ${data.hasFloodDamage ? '☑' : '☐'} Landlord IS aware that flooding has damaged the property during the previous 5 years`),
+        createParagraph(`  ${data.hasFloodDamage ? '☐' : '☑'} Landlord IS NOT aware that flooding has damaged the property during the previous 5 years`),
+        createParagraph('')
+    );
+
+    // Section 18: Special Termination Rights (FIX 5)
+    sections.push(
+        createHeading('18. SPECIAL TERMINATION RIGHTS'),
+        createParagraph('Texas law provides certain tenants with the right to terminate a lease early without penalty in the following circumstances:'),
+        createParagraph(''),
+        createBoldParagraph('Family Violence (§ 92.016):'),
+        createParagraph('Tenants who are victims of family violence may terminate the lease by providing documentation as specified in the statute.'),
+        createParagraph(''),
+        createBoldParagraph('Sexual Assault or Stalking (§ 92.0161):'),
+        createParagraph('Tenants who are victims of sexual assault or stalking may terminate the lease by providing documentation as specified in the statute.'),
+        createParagraph(''),
+        createBoldParagraph('Military Deployment (§ 92.017):'),
+        createParagraph('Service members who receive military orders for permanent change of station or deployment may terminate the lease in accordance with federal and state law.'),
+        createParagraph(''),
+        createBoldParagraph('Death of Sole Tenant (§ 92.0162):'),
+        createParagraph('If the sole tenant dies, the tenant\'s estate or representative may terminate the lease in accordance with the statute.'),
+        createParagraph(''),
+        createParagraph('Contact Landlord for specific procedures and documentation requirements.'),
+        createParagraph('')
+    );
+
+    // Section 19: Additional Terms
+    sections.push(
+        createHeading('19. ADDITIONAL TERMS'),
         createParagraph('  • No smoking is permitted inside the premises'),
         createParagraph('  • No illegal activities on the premises'),
         createParagraph('  • Tenant shall not disturb neighbors or engage in nuisance behavior'),
@@ -666,9 +744,9 @@ function createLeaseDocument(data) {
         createParagraph('')
     );
 
-    // Section 18: Notices
+    // Section 20: Notices
     sections.push(
-        createHeading('18. NOTICES'),
+        createHeading('20. NOTICES'),
         createParagraph('All notices required under this Lease shall be in writing and delivered to the addresses listed above via:'),
         createParagraph('  • Personal delivery'),
         createParagraph('  • Certified mail, return receipt requested'),
@@ -676,50 +754,56 @@ function createLeaseDocument(data) {
         createParagraph('')
     );
 
-    // Section 19: Governing Law
+    // Section 21: Governing Law
     sections.push(
-        createHeading('19. GOVERNING LAW'),
+        createHeading('21. GOVERNING LAW'),
         createParagraph('This Lease shall be governed by the laws of the State of Texas. Any disputes arising under this Lease shall be resolved in the courts of ' + data.county + ' County, Texas.'),
         createParagraph('')
     );
 
-    // Section 20: Severability
+    // Section 22: Severability
     sections.push(
-        createHeading('20. SEVERABILITY'),
+        createHeading('22. SEVERABILITY'),
         createParagraph('If any provision of this Lease is found to be invalid or unenforceable, the remaining provisions shall continue in full force and effect.'),
         createParagraph('')
     );
 
-    // Section 21: Entire Agreement
+    // Section 23: Entire Agreement
     sections.push(
-        createHeading('21. ENTIRE AGREEMENT'),
+        createHeading('23. ENTIRE AGREEMENT'),
         createParagraph('This Lease, together with all addendums, constitutes the entire agreement between the parties. No verbal agreements shall be binding.'),
         createParagraph('')
     );
 
-    // Section 22: Addendums
+    // Section 24: Addendums (FIX 9 - Updated list with all 12 addendums)
     sections.push(
-        createHeading('22. ADDENDUMS'),
+        createHeading('24. ADDENDUMS'),
         createParagraph('The following addendums are incorporated into this Lease:'),
-        createParagraph(`  ${requiresLeadPaint ? '☑' : '☐'} Lead-Based Paint Disclosure (Required for properties built before 1978)`),
-        createParagraph(`  ${data.petsAllowed ? '☑' : '☐'} Pet Agreement`),
-        createParagraph(`  ${data.hasHOA ? '☑' : '☐'} HOA Rules Addendum`),
-        createParagraph(`  ${data.hasGasAppliances ? '☑' : '☐'} Gas Pilot Light Notice`),
-        createParagraph(`  ${data.hasCarpet ? '☑' : '☐'} Carpet Cleaning Agreement`),
-        createParagraph('  ☑ Move-In/Move-Out Condition Report'),
+        createParagraph('  ☑ Move-In/Move-Out Condition Report (Always)'),
+        createParagraph(`  ${requiresLeadPaint ? '☑' : '☐'} Lead-Based Paint Disclosure (If built before 1978)`),
+        createParagraph(`  ${data.petsAllowed ? '☑' : '☐'} Pet Agreement (If pets allowed)`),
+        createParagraph(`  ${data.hasHOA ? '☑' : '☐'} HOA Rules Addendum (If property has HOA)`),
+        createParagraph(`  ${data.hasGasAppliances ? '☑' : '☐'} Gas Pilot Light Notice (If gas appliances)`),
+        createParagraph('  ☑ Excess Water Bill / Leak (Always)'),
+        createParagraph('  ☑ Clogged Drain (Always)'),
+        createParagraph(`  ${data.hasCarpet ? '☑' : '☐'} Carpet Cleaning Agreement (If has carpet)`),
+        createParagraph('  ☑ Electric Breaker / Fuse (Always)'),
+        createParagraph('  ☑ Broken Window (Always)'),
+        createParagraph('  ☑ HVAC Air Filter Maintenance (Always)'),
+        createParagraph('  ☑ Winterization / Freeze Protection (Always)'),
         createParagraph('')
     );
 
     // Signatures
     sections.push(
-        createHeading('23. SIGNATURES'),
+        createHeading('25. SIGNATURES'),
         createParagraph('By signing below, the parties agree to all terms and conditions of this Lease.'),
         createParagraph(''),
         createParagraph(''),
         createParagraph('LANDLORD:'),
         createParagraph(''),
         createParagraph('_____________________________________________    Date: _______________'),
-        createParagraph(`${data.landlordName || 'AJ Estates LLC'}`),
+        createParagraph(`${LANDLORD.name}`),
         createParagraph(''),
         createParagraph(''),
         createParagraph('TENANT(S):'),
@@ -763,15 +847,25 @@ function createLeaseDocument(data) {
         sections.push(...createHOAAddendum(data));
     }
 
-    // Gas Pilot Light Addendum
+    // Gas Pilot Light Addendum (FIX 7 - Updated with $150 fee)
     if (data.hasGasAppliances) {
         sections.push(...createGasAddendum(data));
     }
+
+    // Always-included addendums (FIX 8)
+    sections.push(...createWaterLeakAddendum(data));
+    sections.push(...createCloggedDrainAddendum(data));
 
     // Carpet Cleaning Addendum
     if (data.hasCarpet) {
         sections.push(...createCarpetAddendum(data));
     }
+
+    // More always-included addendums (FIX 8)
+    sections.push(...createElectricBreakerAddendum(data));
+    sections.push(...createBrokenWindowAddendum(data));
+    sections.push(...createHVACFilterAddendum(data));
+    sections.push(...createWinterizationAddendum(data));
 
     // Move-In Checklist
     sections.push(...createMoveInChecklist(data));
@@ -903,14 +997,22 @@ function createHOAAddendum(data) {
 }
 
 function createGasAddendum(data) {
+    // FIX 7 - Updated with $150 service fee language
     return [
-        createHeading('ADDENDUM D: GAS PILOT LIGHT NOTICE', true),
+        createHeading('ADDENDUM D: GAS PILOT LIGHTING', true),
         createParagraph(''),
-        createParagraph('IMPORTANT SAFETY INFORMATION'),
+        createParagraph('☑ APPLIES TO THIS LEASE'),
         createParagraph(''),
-        createParagraph('This property has gas-powered appliances. Tenant acknowledges receipt of this notice regarding the safe operation of gas appliances.'),
+        createParagraph('Landlord is not responsible for lighting pilots on gas stoves, heaters, or water heaters. Directions to light all gas appliances are clearly written and mounted on each appliance.'),
         createParagraph(''),
-        createParagraph('GAS SAFETY GUIDELINES:'),
+        createParagraph('Tenant agrees to light and keep all pilots lit at all times.'),
+        createParagraph(''),
+        createBoldParagraph('If Tenant cannot light a pilot and requests Landlord or Landlord\'s service technician to do so, Tenant will be charged a $150 service fee if the technician is successful at lighting the pilot.'),
+        createParagraph(''),
+        createParagraph('Tenant agrees not to hold Landlord responsible for any damages or injuries due to lighting of any gas pilots.'),
+        createParagraph(''),
+        createParagraph(''),
+        createBoldParagraph('GAS SAFETY GUIDELINES:'),
         createParagraph(''),
         createParagraph('1. CARBON MONOXIDE: Gas appliances can produce carbon monoxide, an odorless, colorless gas that can be deadly. Ensure all gas appliances are properly vented.'),
         createParagraph(''),
@@ -921,15 +1023,11 @@ function createGasAddendum(data) {
         createParagraph('   • Call the gas company emergency line from outside'),
         createParagraph('   • Call 911 if necessary'),
         createParagraph(''),
-        createParagraph('3. PILOT LIGHTS: Some gas appliances have pilot lights that should remain lit. Know the location of pilot lights and how to safely relight them if needed.'),
-        createParagraph(''),
-        createParagraph('4. DETECTORS: Ensure carbon monoxide detectors are installed and functioning. Test monthly and replace batteries as needed.'),
-        createParagraph(''),
-        createParagraph('5. MAINTENANCE: Report any issues with gas appliances immediately to the Landlord.'),
+        createParagraph('3. DETECTORS: Ensure carbon monoxide detectors are installed and functioning. Test monthly and replace batteries as needed.'),
         createParagraph(''),
         createParagraph('EMERGENCY CONTACTS:'),
         createParagraph('• Gas Company Emergency: 911 or local gas company'),
-        createParagraph(`• Landlord: ${data.landlordPhone || 'See lease for contact'}`),
+        createParagraph(`• Landlord: ${LANDLORD.emergencyPhone}`),
         createParagraph(''),
         createParagraph(''),
         createParagraph('Tenant Signature: ___________________________________ Date: _______________'),
@@ -1017,6 +1115,140 @@ function createMoveInChecklist(data) {
     ];
 }
 
+// FIX 8: NEW ADDENDUMS
+
+function createWaterLeakAddendum(data) {
+    return [
+        createHeading('ADDENDUM: EXCESS WATER BILL DUE TO LEAK', true),
+        createParagraph(''),
+        createParagraph('☑ APPLIES TO THIS LEASE'),
+        createParagraph(''),
+        createParagraph('Tenant is responsible for water usage and payments at all times.'),
+        createParagraph(''),
+        createBoldParagraph('Tenant must notify Landlord IMMEDIATELY in writing upon seeing or hearing any water leak.'),
+        createParagraph(''),
+        createParagraph('Tenant is responsible for excess water charges in all cases where leaks are not promptly reported to Landlord in writing.'),
+        createParagraph(''),
+        createParagraph('Landlord has shown Tenant how to turn off the main water supply valve to the property. In case of a broken or burst water supply line, Tenant agrees to turn off the main water supply immediately before calling Landlord or a plumber.'),
+        createParagraph(''),
+        createBoldParagraph('REPORT ANY LEAKS TO LANDLORD IMMEDIATELY. OTHERWISE, TENANT WILL BE CHARGED FOR EXCESS WATER USAGE.'),
+        createParagraph(''),
+        createParagraph(''),
+        createParagraph('Tenant Initials: _______     Date: _______'),
+        createParagraph(''),
+        new Paragraph({ children: [new PageBreak()] })
+    ];
+}
+
+function createCloggedDrainAddendum(data) {
+    return [
+        createHeading('ADDENDUM: CLOGGED DRAIN', true),
+        createParagraph(''),
+        createParagraph('☑ APPLIES TO THIS LEASE'),
+        createParagraph(''),
+        createParagraph('Tenant acknowledges that during the pre-move-in inspection, all drains were tested and toilets flushed, and all were functioning properly and free of clogs.'),
+        createParagraph(''),
+        createBoldParagraph('Tenant agrees to pay for clearing all clogged drains, toilets, sinks, and traps caused by Tenant\'s use.'),
+        createParagraph(''),
+        createParagraph('In the event of a clog, Tenant must first attempt to clear the clog using a plunger or similar tool. If unsuccessful, Tenant will call a professional drain cleaning company (not the Landlord) to attempt to clear the line.'),
+        createParagraph(''),
+        createParagraph('If the professional drain cleaner cannot clear the clog and determines it is caused by a condition in the property\'s plumbing system (such as a broken pipe) not caused by Tenant, Landlord will reimburse Tenant for the service call and arrange for repairs.'),
+        createParagraph(''),
+        createParagraph('99% of clogs are caused by items flushed or poured down drains. Think before you flush!'),
+        createParagraph(''),
+        createParagraph(''),
+        createParagraph('Tenant Initials: _______     Date: _______'),
+        createParagraph(''),
+        new Paragraph({ children: [new PageBreak()] })
+    ];
+}
+
+function createElectricBreakerAddendum(data) {
+    return [
+        createHeading('ADDENDUM: ELECTRIC BREAKER AND FUSE', true),
+        createParagraph(''),
+        createParagraph('☑ APPLIES TO THIS LEASE'),
+        createParagraph(''),
+        createParagraph('Tenant agrees to take responsibility for resetting tripped breakers or replacing blown fuses.'),
+        createParagraph(''),
+        createParagraph('Landlord has instructed Tenant at move-in on how to reset tripped breakers and replace fuses.'),
+        createParagraph(''),
+        createBoldParagraph('Tenant agrees to check and reset breakers or replace fuses BEFORE calling Landlord for a service call.'),
+        createParagraph(''),
+        createBoldParagraph('If Landlord or Landlord\'s representative is called to the property and determines that the problem was a tripped breaker or blown fuse, Tenant will be charged a $150 service fee.'),
+        createParagraph(''),
+        createParagraph(''),
+        createParagraph('Tenant Initials: _______     Date: _______'),
+        createParagraph(''),
+        new Paragraph({ children: [new PageBreak()] })
+    ];
+}
+
+function createBrokenWindowAddendum(data) {
+    return [
+        createHeading('ADDENDUM: BROKEN WINDOW', true),
+        createParagraph(''),
+        createParagraph('☑ APPLIES TO THIS LEASE'),
+        createParagraph(''),
+        createParagraph('Tenant takes responsibility for all windows in the property.'),
+        createParagraph(''),
+        createParagraph('If any window becomes broken, cracked, or damaged during Tenant\'s occupancy for any reason (including acts of nature, attempted burglary, or unknown causes), Tenant is responsible for having the window repaired at Tenant\'s expense.'),
+        createParagraph(''),
+        createBoldParagraph('Tenant must report any broken window to Landlord within 24 hours.'),
+        createParagraph(''),
+        createParagraph('Tenant must arrange for repair of broken windows within 7 days of the damage occurring. Failure to repair broken windows in a timely manner may be considered a lease violation.'),
+        createParagraph(''),
+        createParagraph('This provision does not apply to window damage caused by Landlord\'s negligence or defects in the window that existed prior to Tenant\'s occupancy.'),
+        createParagraph(''),
+        createParagraph(''),
+        createParagraph('Tenant Initials: _______     Date: _______'),
+        createParagraph(''),
+        new Paragraph({ children: [new PageBreak()] })
+    ];
+}
+
+function createHVACFilterAddendum(data) {
+    return [
+        createHeading('ADDENDUM: HVAC AIR FILTER MAINTENANCE', true),
+        createParagraph(''),
+        createParagraph('☑ APPLIES TO THIS LEASE'),
+        createParagraph(''),
+        createBoldParagraph('Tenant must replace the HVAC air filter every 90 days (or more frequently if needed).'),
+        createParagraph(''),
+        createParagraph('Tenant must send photo evidence of the new filter to Landlord each time the filter is replaced.'),
+        createParagraph(''),
+        createParagraph(`Filter size for this property: ${data.hvacFilterSize || '___________________'}`),
+        createParagraph(''),
+        createBoldParagraph('Failure to replace air filters may result in HVAC damage. If HVAC repairs are needed due to clogged or dirty filters, Tenant will be responsible for the cost of repairs.'),
+        createParagraph(''),
+        createParagraph(''),
+        createParagraph('Tenant Initials: _______     Date: _______'),
+        createParagraph(''),
+        new Paragraph({ children: [new PageBreak()] })
+    ];
+}
+
+function createWinterizationAddendum(data) {
+    return [
+        createHeading('ADDENDUM: WINTERIZATION / FREEZE PROTECTION', true),
+        createParagraph(''),
+        createParagraph('☑ APPLIES TO THIS LEASE'),
+        createParagraph(''),
+        createBoldParagraph('During winter or any time freezing temperatures are forecast:'),
+        createParagraph(''),
+        createParagraph('• Tenant must cover all exterior faucets with outdoor foam faucet covers'),
+        createParagraph('• Tenant must disconnect and drain all garden hoses from exterior faucets'),
+        createParagraph('• Tenant must keep thermostat set to at least 55°F to prevent interior pipe freezing'),
+        createParagraph('• If leaving property vacant for more than 48 hours during winter, Tenant should turn off main water valve'),
+        createParagraph(''),
+        createBoldParagraph('Landlord is NOT responsible for frozen/burst pipes or water damage if Tenant fails to take reasonable steps to winterize the property.'),
+        createParagraph(''),
+        createParagraph(''),
+        createParagraph('Tenant Initials: _______     Date: _______'),
+        createParagraph('')
+    ];
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -1041,6 +1273,33 @@ function createParagraph(text) {
         children: [
             new TextRun({
                 text: text,
+                size: 22
+            })
+        ],
+        spacing: { after: 100 }
+    });
+}
+
+function createBoldParagraph(text) {
+    return new Paragraph({
+        children: [
+            new TextRun({
+                text: text,
+                bold: true,
+                size: 22
+            })
+        ],
+        spacing: { after: 100 }
+    });
+}
+
+function createBoldUnderlinedParagraph(text) {
+    return new Paragraph({
+        children: [
+            new TextRun({
+                text: text,
+                bold: true,
+                underline: { type: UnderlineType.SINGLE },
                 size: 22
             })
         ],

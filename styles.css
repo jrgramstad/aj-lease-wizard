@@ -100,6 +100,26 @@ body {
     margin-bottom: 16px;
 }
 
+/* Info Box (for hardcoded landlord info) */
+.info-box {
+    background-color: var(--background-color);
+    padding: 16px 20px;
+    border-radius: var(--border-radius);
+    border-left: 4px solid var(--primary-color);
+}
+
+.info-box p {
+    margin-bottom: 4px;
+}
+
+.info-box .emergency-notice {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border-color);
+    color: var(--danger-color);
+    font-weight: 600;
+}
+
 .subsection-title {
     font-size: 1rem;
     font-weight: 600;
